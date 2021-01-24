@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2021-01-24
+
+### Fixed
+
+- Move `canvas` package to normal `dependencies` in `package.json`
+
+## [0.6.3] - 2021-01-23
+
+### Fixed
+
+- Double click handling
+
+## [0.6.2] - 2021-01-23
+
+### Changed
+
+- Improve event handling
+
+### Fixed
+
+- Hit detection for spritesheet textures
+- Direction of furniture not changing
+
+## [0.6.1] - 2021-01-23
+
+### Fixed
+
+- Door wall not hiding when `hideWalls` is set to `true`
+- `onActiveTileChange` not firing
+
+## [0.6.0] - 2021-01-23
+
+### Added
+
+- Add `onActiveWallChange` - useful for handling wall item placement
+- Add `onPointerDown` & `onPointerUp` for furnitures and avatars
+- Support unpadded tilemaps
+- Secure WebSocket support for `shroom proxy` (thanks @somekindadude)
+
+### Changed
+
+- Mouse events now don't trigger `onTileClick` when `stopPropagation` is called on a avatar or furniture above it
+- **BREAKING:**: Asset dumping & loading
+
+  Assets now get dumped into `.shroom` files, instead of individual files. Rerun the `shroom dump` command to regenerate those assets.
+
+- Allow skipping the download on `shroom dump` when omitting the `--url` parameter
+
+### Removed
+
+- Temporarily disable landscapes because of performance issues
+
+### Fixed
+
+- Display of avatar when rendering certain clothing items
+
 ## [0.5.1] - 2021-01-13
 
 ### Fixed

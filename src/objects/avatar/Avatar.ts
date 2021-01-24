@@ -42,6 +42,8 @@ export class Avatar extends RoomObject implements IMoveable, IScreenPositioned {
 
   private _onClick: HitEventHandler | undefined = undefined;
   private _onDoubleClick: HitEventHandler | undefined = undefined;
+  private _onPointerDown: HitEventHandler | undefined = undefined;
+  private _onPointerUp: HitEventHandler | undefined = undefined;
 
   constructor({
     look,
@@ -85,6 +87,13 @@ export class Avatar extends RoomObject implements IMoveable, IScreenPositioned {
   }
 
   /**
+   * The look of the avatar
+   */
+  public get look() {
+    return this._look;
+  }
+
+  /**
    * Set this with a callback if you want to capture clicks on the Avatar.
    */
   public get onClick() {
@@ -105,6 +114,24 @@ export class Avatar extends RoomObject implements IMoveable, IScreenPositioned {
 
   public set onDoubleClick(value) {
     this._onDoubleClick = value;
+    this._updateEventHandlers();
+  }
+
+  get onPointerDown() {
+    return this._onPointerDown;
+  }
+
+  set onPointerDown(value) {
+    this._onPointerDown = value;
+    this._updateEventHandlers();
+  }
+
+  get onPointerUp() {
+    return this._onPointerUp;
+  }
+
+  set onPointerUp(value) {
+    this._onPointerUp = value;
     this._updateEventHandlers();
   }
 
@@ -434,10 +461,14 @@ export class Avatar extends RoomObject implements IMoveable, IScreenPositioned {
     if (this._placeholderSprites != null) {
       this._placeholderSprites.onClick = this._onClick;
       this._placeholderSprites.onDoubleClick = this._onDoubleClick;
+      this._placeholderSprites.onPointerDown = this._onPointerDown;
+      this._placeholderSprites.onPointerUp = this._onPointerUp;
     }
 
     this._loadingAvatarSprites.onClick = this._onClick;
     this._loadingAvatarSprites.onDoubleClick = this._onDoubleClick;
+    this._loadingAvatarSprites.onPointerDown = this._onPointerDown;
+    this._loadingAvatarSprites.onPointerUp = this._onPointerUp;
   }
 
   private _getPlaceholderLookOptions(): LookOptions {

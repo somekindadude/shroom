@@ -1,9 +1,11 @@
 import * as PIXI from "pixi.js";
 
 import {
+  AnimatedFurnitureVisualization,
   Avatar,
   AvatarAction,
   BaseFurniture,
+  BasicFurnitureVisualization,
   FloorFurniture,
   FurnitureBottleVisualization,
   FurnitureGuildCustomizedVisualization,
@@ -14,6 +16,7 @@ import {
 } from "@jankuss/shroom";
 import { createShroom } from "./common/createShroom";
 import { action } from "@storybook/addon-actions";
+import fetch from "node-fetch";
 
 export default {
   title: "Furniture",
@@ -44,10 +47,38 @@ export function Default() {
       });
 
       furniture.onClick = action(`Furniture ${i} clicked`);
+      furniture.onDoubleClick = action(`Furniture ${i} Double Clicked`);
       furniture.validDirections.then(action(`Furniture ${i} valid directions`));
 
       room.addRoomObject(furniture);
     }
+
+    const test1 = new FloorFurniture({
+      roomX: 3,
+      roomY: 3,
+      roomZ: 0,
+      id: 1626,
+      direction: 2,
+    });
+
+    const test2 = new FloorFurniture({
+      roomX: 3,
+      roomY: 3,
+      roomZ: 0,
+      id: 285,
+      direction: 2,
+    });
+
+    test1.onClick = () => {
+      console.log("Clicked");
+    };
+    test1.onDoubleClick = () => {
+      console.log("Double Clicked");
+    };
+
+    room.onTileClick = (position) => console.log(position);
+    room.addRoomObject(test1);
+    room.addRoomObject(test2);
 
     const dice = new FloorFurniture({
       roomX: 1,
@@ -87,8 +118,8 @@ export function Animated() {
       const animation = i % 2 === 0 ? "0" : "1";
 
       const furniture = new FloorFurniture({
-        roomX: 1 + i * 3,
-        roomY: 1,
+        roomX: 1 + i,
+        roomY: 1 + i,
         roomZ: 0,
         type: `rare_dragonlamp*${i}`,
         direction,
@@ -97,12 +128,23 @@ export function Animated() {
 
       furniture.onClick = action(`Furniture ${i} clicked`);
       furniture.onDoubleClick = () => {
+        action(`Furniture ${i} double clicked`)();
         if (furniture.animation === "0") {
           furniture.animation = "1";
         } else {
           furniture.animation = "0";
         }
       };
+      /*
+      if (i === 0) {
+        room.onActiveTileChange.subscribe((value) => {
+          if (value == null) return;
+
+          furniture.roomX = value.roomX;
+          furniture.roomY = value.roomY;
+          furniture.roomZ = value.roomZ;
+        });
+      }*/
 
       room.addRoomObject(furniture);
     }
@@ -310,7 +352,8 @@ export function DifferentFetchTypes() {
       direction: 2,
       roomX: 1,
       roomY: 1,
-      roomZ: 0,
+      offsetX: 0,
+      offsetY: 0,
     });
     const floorFurniture = new FloorFurniture({
       id: 4054,
@@ -429,6 +472,7 @@ export function GldGate() {
 
     floorFurniture3.onClick = () => {
       b = !b;
+      console.log("CHANGE");
 
       if (b) {
         floorFurniture3.animation = "1";
@@ -659,7 +703,8 @@ export function WallWindowDestroy() {
     const furniture = new WallFurniture({
       roomX: 1,
       roomY: 1,
-      roomZ: 0,
+      offsetX: 0,
+      offsetY: 0,
       animation: "0",
       direction: 4,
       type: "window_skyscraper",
@@ -703,7 +748,8 @@ export function WallWindowDestroyWhileLoading() {
     const furniture = new WallFurniture({
       roomX: 1,
       roomY: 1,
-      roomZ: 0,
+      offsetX: 0,
+      offsetY: 0,
       animation: "0",
       direction: 4,
       type: "window_skyscraper",
@@ -772,6 +818,80 @@ export function FurnitureColoring() {
   });
 }
 
+export function WallFurniturePosition() {
+  return createShroom(({ application, shroom }) => {
+    const room = Room.create(shroom, {
+      tilemap: `
+      xxxxxxxxxxxx
+      xxxxxxxxxxxx
+      xxxxxxxxxxxx
+      xxxxxxxxxxxx
+      xxxxxxxxxxxx
+      xxxxx000000x
+      xxxxx000000x
+      xxxx0000000x
+      xxxxx000000x
+      xxxxx000000x
+      xxxxx000000x
+      xxxxxxxxxxxx
+      xxxxxxxxxxxx
+      xxxxxxxxxxxx
+      xxxxxxxxxxxx
+      xxxxxxxxxxxx
+      `,
+    });
+
+    const furniture1 = new WallFurniture({
+      roomX: 4,
+      roomY: 5,
+      offsetX: 6,
+      offsetY: 51,
+      animation: "0",
+      direction: 2,
+      type: "flag_peru",
+    });
+
+    room.onActiveWallChange.subscribe((value) => {
+      if (value == null) return;
+
+      furniture1.roomX = value.roomX;
+      furniture1.roomY = value.roomY;
+      furniture1.offsetX = value.offsetX;
+      furniture1.offsetY = value.offsetY;
+      furniture1.direction = value.wall === "l" ? 2 : 4;
+
+      console.log(value.offsetX, value.offsetY);
+    });
+
+    const furniture2 = new WallFurniture({
+      roomX: 5,
+      roomY: 4,
+      offsetX: 9,
+      offsetY: 51,
+      animation: "0",
+      direction: 4,
+      type: "flag_peru",
+    });
+
+    const furniture3 = new WallFurniture({
+      roomX: 4,
+      roomY: 10,
+      offsetX: 9,
+      offsetY: 14,
+      animation: "0",
+      direction: 2,
+      type: "flag_peru",
+    });
+
+    room.x = application.screen.width / 2 - room.roomWidth / 2;
+    room.y = application.screen.height / 2 - room.roomHeight / 2;
+    room.addRoomObject(furniture1);
+    room.addRoomObject(furniture2);
+    room.addRoomObject(furniture3);
+    application.stage.addChild(room);
+  });
+}
+
 export function FurnitureFlip() {
   return createShroom(({ application, shroom }) => {
     const room = Room.create(shroom, {
@@ -829,6 +949,81 @@ export function LayingAvatarsBehindBed() {
        x0000000000
       `,
     });
+
+    const furniture1 = new FloorFurniture({
+      roomX: 1,
+      roomY: 1,
+      roomZ: 0,
+      animation: "0",
+      direction: 2,
+      type: "bed_budget",
+    });
+
+    const avatar = new Avatar({
+      roomX: 1,
+      roomY: 1,
+      direction: 2,
+      look: "hr-3163-39.hd-180-2.lg-3202-1322-1329.ch-215-1331",
+      roomZ: 0,
+    });
+
+    avatar.addAction(AvatarAction.Lay);
+
+    setTimeout(() => {
+      avatar.walk(1, 2, 0);
+    }, 2500);
+
+    room.x = application.screen.width / 2 - room.roomWidth / 2;
+    room.y = application.screen.height / 2 - room.roomHeight / 2;
+    room.addRoomObject(furniture1);
+    room.addRoomObject(avatar);
+    application.stage.addChild(room);
+  });
+}
+
+export function LoadTest() {
+  return createShroom(({ application, shroom }) => {
+    const room = Room.create(shroom, {
+      tilemap: `
+       xxxxxxxxxxx
+       x0000000000
+       x0000000000
+       x0000000000
+       x0000000000
+       x0000000000
+       x0000000000
+       x0000000000
+       x0000000000
+      `,
+    });
+
+    fetch(`./furni.json`)
+      .then((response) => response.json())
+      .then((furnitures: any[]) => {
+        furnitures.forEach((furni) => {
+          const obj = new FloorFurniture({
+            roomX: furni.x,
+            roomY: furni.y,
+            roomZ: furni.z,
+            type: furni.item,
+            direction: furni.rot,
+            animation: furni.extra_data,
+          });
+
+          obj.extradata.then(({ visualization }) => {
+            switch (visualization) {
+              case "furniture_animated":
+                obj.visualization = new AnimatedFurnitureVisualization();
+                break;
+              case "furniture_static":
+                obj.visualization = new BasicFurnitureVisualization();
+                break;
+            }
+          });
+
+          room.addRoomObject(obj);
+        });
+      });
 
     const furniture1 = new FloorFurniture({
       roomX: 1,

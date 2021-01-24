@@ -56,11 +56,11 @@ export function getAvatarDrawDefinition(
     direction,
     headDirection,
     item: itemId,
+    effect,
   }: Options,
   deps: AvatarDependencies
 ): AvatarDrawDefinition | undefined {
   const actions = new Set(initialActions).add(AvatarAction.Default);
-
   const { partSetsData, actionsData, figureData, geometry } = deps;
 
   // Sort actions by precedence. This basically determines in which order actions are applied.
@@ -121,6 +121,7 @@ export function getAvatarDrawDefinition(
               colorable: false,
               hiddenLayers: [],
               id: itemId.toString(),
+              index: 0,
             };
           }
 
@@ -134,6 +135,7 @@ export function getAvatarDrawDefinition(
                   color: undefined,
                   colorable: false,
                   hiddenLayers: [],
+                  index: 0,
                 },
               ];
             }
@@ -209,7 +211,13 @@ function getBodyPart(
     headDirection?: number;
     itemId?: string | number;
   },
-  { offsetsData, animationData, partSetsData, figureMap }: AvatarDependencies
+  {
+    offsetsData,
+    animationData,
+    partSetsData,
+    figureMap,
+    figureData,
+  }: AvatarDependencies
 ): {
   resolvedParts: AvatarDrawPart[];
   removeSetTypes: Set<AvatarFigurePartType>;
@@ -257,6 +265,9 @@ function getBodyPart(
         figureMap,
         partId: part.id,
         partType: part.type as AvatarFigurePartType,
+        setId: part.setId,
+        setType: part.setType,
+        figureData,
       })
     );
 
@@ -268,8 +279,11 @@ function getBodyPart(
         color: part.colorable ? `#${part.color}` : undefined,
         mode: part.type !== "ey" && part.colorable ? "colored" : "just-image",
         type: part.type,
+        index: part.index,
       });
     }
+
+    resolvedParts.sort((a, b) => a.index - b.index);
 
     remainingPartCount--;
   }
@@ -289,6 +303,9 @@ function getAssetForFrame({
   partId,
   offsetsData,
   figureMap,
+  figureData,
+  setId,
+  setType,
 }: {
   animationFrame?: AvatarAnimationFrame;
   actionData: AvatarActionInfo;
@@ -296,8 +313,11 @@ function getAssetForFrame({
   partType: AvatarFigurePartType;
   direction: number;
   partId: string;
+  setId?: string;
+  setType?: string;
   offsetsData: IAvatarOffsetsData;
   figureMap: IFigureMapData;
+  figureData: IFigureData;
 }) {
   const avatarFlipped = DIRECTION_IS_FLIPPED[direction];
 
@@ -350,8 +370,15 @@ function getAssetForFrame({
     }
 
     let libraryId = figureMap.getLibraryOfPart(partId, flippedMeta.partType);
-    if (libraryId == null) {
-      libraryId = getLibraryForPartType(flippedMeta.partType);
+    if (libraryId == null && setId != null && setType != null) {
+      const checkParts = figureData.getParts(setType, setId) ?? [];
+
+      for (let i = 0; i < checkParts.length; i++) {
+        const checkPart = checkParts[i];
+
+        libraryId = figureMap.getLibraryOfPart(checkPart.id, checkPart.type);
+        if (libraryId != null) break;
+      }
     }
 
     if (libraryId != null) {
@@ -366,14 +393,6 @@ function getAssetForFrame({
         return asset;
       }
     }
-  }
-}
-
-function getLibraryForPartType(partType: AvatarFigurePartType) {
-  switch (partType) {
-    case AvatarFigurePartType.LeftSleeve:
-    case AvatarFigurePartType.RightSleeve:
-      return "hh_human_shirt";
   }
 }
 
@@ -405,6 +424,9 @@ function getAssetFromPartMeta(
       offsetsX += 52;
     }
   }
+
+  if (isNaN(offsetsX)) throw new Error("Invalid x offset");
+  if (isNaN(offsetsY)) throw new Error("Invalid y offset");
 
   return {
     fileId: assetInfoFrame.asset,
@@ -438,6 +460,7 @@ export type AvatarDrawPart = {
   assets: AvatarAsset[];
   color: string | undefined;
   mode: "colored" | "just-image";
+  index: number;
 };
 
 export interface AvatarDrawDefinition {

@@ -7,8 +7,12 @@ export class ClickHandler {
     timeout: number;
   };
 
+  private _map = new Map<string, boolean>();
+
   private _onClick: HitEventHandler | undefined;
   private _onDoubleClick: HitEventHandler | undefined;
+  private _onPointerDown: HitEventHandler | undefined;
+  private _onPointerUp: HitEventHandler | undefined;
 
   public get onClick() {
     return this._onClick;
@@ -26,19 +30,52 @@ export class ClickHandler {
     this._onDoubleClick = value;
   }
 
-  handleClick(event: HitEvent) {
-    if (this.onClick != null || this.onDoubleClick != null) {
-      event.stopPropagation();
-    }
+  public get onPointerDown() {
+    return this._onPointerDown;
+  }
 
+  public set onPointerDown(value) {
+    this._onPointerDown = value;
+  }
+
+  public get onPointerUp() {
+    return this._onPointerUp;
+  }
+
+  public set onPointerUp(value) {
+    this._onPointerUp = value;
+  }
+
+  handleClick(event: HitEvent) {
     if (this._doubleClickInfo == null) {
       this.onClick && this.onClick(event);
-      this._startDoubleClick(event);
+
+      if (this.onDoubleClick != null) {
+        this._startDoubleClick(event);
+      }
     } else {
-      this.onDoubleClick &&
-        this.onDoubleClick(this._doubleClickInfo.initialEvent);
-      this._resetDoubleClick();
+      event.stopPropagation();
+      this._performDoubleClick(event);
     }
+  }
+
+  handlePointerDown(event: HitEvent) {
+    this.onPointerDown && this.onPointerDown(event);
+  }
+
+  handlePointerUp(event: HitEvent) {
+    this.onPointerUp && this.onPointerUp(event);
+  }
+
+  private _performDoubleClick(event: HitEvent) {
+    if (this._doubleClickInfo == null) return;
+
+    this.onDoubleClick &&
+      this.onDoubleClick(this._doubleClickInfo.initialEvent);
+
+    setTimeout(() => {
+      this._resetDoubleClick();
+    });
   }
 
   private _resetDoubleClick() {

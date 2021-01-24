@@ -5,23 +5,26 @@ import { FurnitureVisualization } from "./FurnitureVisualization";
 export class BasicFurnitureVisualization extends FurnitureVisualization {
   private _sprites: FurnitureSprite[] = [];
   private _refreshFurniture = false;
-  private _currentDirection = 0;
+  private _currentDirection = -1;
   private _animationId: string | undefined;
 
   setView(view: IFurnitureVisualizationView): void {
     super.setView(view);
-
-    this._refreshFurniture = true;
+    this._update();
   }
 
   updateDirection(direction: number): void {
+    if (this._currentDirection === direction) return;
+
     this._currentDirection = direction;
-    this._refreshFurniture = true;
+    this._update();
   }
 
   updateAnimation(animation: string): void {
+    if (this._animationId === animation) return;
+
     this._animationId = animation;
-    this._refreshFurniture = true;
+    this._update();
   }
 
   updateFrame(): void {

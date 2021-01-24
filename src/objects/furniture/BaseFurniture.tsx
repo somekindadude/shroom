@@ -39,6 +39,7 @@ interface BaseFurnitureDependencies {
   animationTicker: IAnimationTicker;
   furnitureLoader: IFurnitureLoader;
   hitDetection: IHitDetection;
+  application: PIXI.Application;
 }
 
 export interface BaseFurnitureProps {
@@ -80,6 +81,8 @@ export class BaseFurniture implements IFurnitureEventHandlers {
   private _destroyed = false;
 
   private _maskNodes: MaskNode[] = [];
+  private _maskSprites: FurnitureSprite[] = [];
+
   private _cancelTicker: (() => void) | undefined = undefined;
   private _getMaskId: MaskIdGetter;
 
@@ -128,6 +131,7 @@ export class BaseFurniture implements IFurnitureEventHandlers {
         furnitureLoader: context.furnitureLoader,
         hitDetection: context.hitDetection,
         visualization: context.visualization,
+        application: context.application,
       },
       ...props,
     });
@@ -144,6 +148,7 @@ export class BaseFurniture implements IFurnitureEventHandlers {
         furnitureLoader: shroom.dependencies.furnitureLoader,
         hitDetection: shroom.dependencies.hitDetection,
         placeholder: shroom.dependencies.configuration.placeholder,
+        application: shroom.dependencies.application,
         visualization: {
           container,
           addMask: () => {
@@ -151,6 +156,10 @@ export class BaseFurniture implements IFurnitureEventHandlers {
               remove: () => {
                 // Do nothing
               },
+              update: () => {
+                // Do nothing
+              },
+              sprite: null as any,
             };
           },
         },
@@ -232,6 +241,22 @@ export class BaseFurniture implements IFurnitureEventHandlers {
     this._clickHandler.onDoubleClick = value;
   }
 
+  public get onPointerDown() {
+    return this._clickHandler.onPointerDown;
+  }
+
+  public set onPointerDown(value) {
+    this._clickHandler.onPointerDown = value;
+  }
+
+  public get onPointerUp() {
+    return this._clickHandler.onPointerUp;
+  }
+
+  public set onPointerUp(value) {
+    this._clickHandler.onPointerUp = value;
+  }
+
   public get x() {
     return this._x;
   }
@@ -280,7 +305,11 @@ export class BaseFurniture implements IFurnitureEventHandlers {
 
   public set animation(value) {
     this._animation = value;
-    this.visualization.updateAnimation(this.animation);
+
+    if (this.mounted) {
+      this.visualization.updateAnimation(this.animation);
+      this._handleAnimationChange();
+    }
   }
 
   public get maskId() {
@@ -318,6 +347,8 @@ export class BaseFurniture implements IFurnitureEventHandlers {
   };
 
   private _updateDirection() {
+    if (!this.mounted) return;
+
     if (this._validDirections != null) {
       this.visualization.updateDirection(
         getDirectionForFurniture(this.direction, this._validDirections)
@@ -344,6 +375,20 @@ export class BaseFurniture implements IFurnitureEventHandlers {
       element.baseX = this.x;
       element.baseY = this.y;
     });
+
+    const maskId = this._getMaskId(this.direction);
+
+    const maskSprites = this._maskSprites;
+    this._maskNodes.forEach((mask) => mask.remove());
+    this._maskNodes = [];
+
+    if (maskId != null) {
+      maskSprites.forEach((maskSprite) => {
+        this._maskNodes.push(
+          this.dependencies.visualization.addMask(maskId, maskSprite)
+        );
+      });
+    }
   }
 
   private _updateFurniture() {
@@ -362,6 +407,7 @@ export class BaseFurniture implements IFurnitureEventHandlers {
     if (this._unknownSprite == null) {
       this._unknownSprite = new FurnitureSprite({
         hitDetection: this.dependencies.hitDetection,
+        group: this,
       });
 
       this._unknownSprite.baseX = this.x;
@@ -413,6 +459,7 @@ export class BaseFurniture implements IFurnitureEventHandlers {
         this._maskNodes.push(
           this.dependencies.visualization.addMask(maskId, sprite)
         );
+        this._maskSprites.push(sprite);
       }
     }
 
@@ -422,12 +469,15 @@ export class BaseFurniture implements IFurnitureEventHandlers {
   private _updateFurnitureSprites(loadFurniResult: LoadFurniResult) {
     if (!this.mounted) return;
 
+    this._maskNodes.forEach((node) => node.remove());
+    this._maskNodes = [];
+
     this._unknownSprite?.destroy();
     this._unknownSprite = undefined;
 
     this.visualization.setView({
       furniture: loadFurniResult,
-      createSprite: (part, assetIndex) => {
+      createSprite: (part, assetIndex, skipLayerUpdate) => {
         const asset = getAssetFromPart(part, assetIndex);
         if (asset == null) return;
 
@@ -462,6 +512,9 @@ export class BaseFurniture implements IFurnitureEventHandlers {
 
     this.visualization.updateAnimation(this.animation);
     this.visualization.updateFrame(this.dependencies.animationTicker.current());
+
+    this._handleAnimationChange();
+    this._updatePosition();
   }
 
   private _applyLayerDataToSprite(
@@ -547,13 +600,23 @@ export class BaseFurniture implements IFurnitureEventHandlers {
       hitDetection: this.dependencies.hitDetection,
       mirrored: asset.flipH,
       tag: layer?.tag,
+      group: this,
     });
 
-    if (layer?.ignoreMouse !== true) {
-      sprite.addEventListener("click", (event) =>
-        this._clickHandler.handleClick(event)
-      );
-    }
+    const ignoreMouse = layer?.ignoreMouse != null && layer.ignoreMouse;
+    sprite.ignoreMouse = ignoreMouse;
+
+    sprite.addEventListener("click", (event) => {
+      this._clickHandler.handleClick(event);
+    });
+
+    sprite.addEventListener("pointerup", (event) => {
+      this._clickHandler.handlePointerUp(event);
+    });
+
+    sprite.addEventListener("pointerdown", (event) => {
+      this._clickHandler.handlePointerDown(event);
+    });
 
     sprite.hitTexture = texture;
 
@@ -585,13 +648,33 @@ export class BaseFurniture implements IFurnitureEventHandlers {
     });
 
     this._updateFurniture();
+  }
 
-    this._cancelTicker && this._cancelTicker();
-    this._cancelTicker = this.dependencies.animationTicker.subscribe(
-      (frame) => {
-        this.visualization.updateFrame(frame);
-      }
-    );
+  private _handleAnimationChange() {
+    if (
+      this.visualization.isAnimated(this.animation) &&
+      this._cancelTicker == null
+    ) {
+      this._cancelTicker = this.dependencies.animationTicker.subscribe(
+        (frame) => {
+          this.visualization.updateFrame(frame);
+        }
+      );
+      this.visualization.updateFrame(
+        this.dependencies.animationTicker.current()
+      );
+    }
+
+    if (
+      !this.visualization.isAnimated(this.animation) &&
+      this._cancelTicker != null
+    ) {
+      this._cancelTicker();
+      this._cancelTicker = undefined;
+      this.visualization.updateFrame(
+        this.dependencies.animationTicker.current()
+      );
+    }
   }
 
   private _getAlpha({
